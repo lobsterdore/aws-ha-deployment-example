@@ -1,0 +1,38 @@
+{
+  "variables": {
+    "aws_access_key": "",
+    "aws_secret_key": ""
+  },
+  "builders": [{
+    "type": "amazon-ebs",
+    "access_key": "{{user `aws_access_key`}}",
+    "secret_key": "{{user `aws_secret_key`}}",
+    "region": "eu-west-1",
+    "source_ami": "ami-47a23a30",
+    "instance_type": "t2.micro",
+    "ssh_username": "ubuntu",
+    "ami_name": "hello-app {{timestamp}}"
+  }],
+  "provisioners": [
+    {
+      "type": "file",
+      "source": ".",
+      "destination": "/tmp/hello-app"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "sleep 30",
+        "sudo apt-get update",
+        "sudo apt-get install -y puppet",
+        "sudo mkdir -p /home/hello-app/go/src/github.com/lobsterdore",
+        "sudo mv /tmp/hello-app /home/hello-app/go/src/github.com/lobsterdore/"
+      ]
+    },
+    {
+      "type": "puppet-masterless",
+      "manifest_file": "provision.pp"
+    }
+  ]
+}
+

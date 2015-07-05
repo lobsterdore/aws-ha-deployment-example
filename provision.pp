@@ -23,11 +23,11 @@ file { "/etc/profile.d/gopath.sh":
 
 user { "hello-app":
   ensure => present,
-  managehome => true,
   shell => '/bin/bash'
 } ->
-file { "/home/hello-app/go":
+file { "/home/hello-app":
   owner => 'hello-app',
+  group => 'hello-app',
   recurse => true,
   purge => false
 }
