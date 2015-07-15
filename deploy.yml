@@ -1,0 +1,18 @@
+---
+
+- hosts: all
+  tasks:
+    - name: Push cloudformation stack
+      cloudformation:
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        stack_name: "hello-app"
+        state: present
+        region: eu-west-1
+        template: cloudformation.json
+        template_parameters:
+          KeyName: "{{ aws_key_name }}"
+          InstanceImageId: "{{ aws_ami_id }}"
+        tags:
+          Stack: "hello-app"
+          Ami: "{{ aws_ami_id }}"

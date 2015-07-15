@@ -1,7 +1,7 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
 
-  "Description": "HA Example",
+  "Description": "Hello-app Example",
 
   "Parameters": {
 
@@ -191,7 +191,7 @@
                 "sysvinit" : {
                   "supervisor": {
                     "enabled": "true",
-                    "ensureRunning" : "true"
+                    "ensureRunning": "true"
                   }
                 }
               }
