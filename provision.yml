@@ -1,0 +1,68 @@
+---
+- hosts: all
+  tasks:
+    - name: Install esential packages
+      sudo: yes
+      apt:
+        update_cache: yes
+        name: "{{ item }}"
+      with_items:
+        - golang
+        - vim
+        - build-essential
+        - git
+        - unzip
+        - supervisor
+
+    - name: Ensure hello-app user
+      sudo: yes
+      user:
+        name: "hello-app"
+        shell: "/bin/bash"
+
+    - name: Ensure hello-app directory
+      sudo: yes
+      file:
+        path: /home/hello-app/go/src/github.com/lobsterdore
+        state: directory
+        recurse: yes
+        owner: hello-app
+        group: hello-app
+
+    - name: Ensure hello-app log directory
+      sudo: yes
+      file:
+        path: /home/hello-app/logs
+        state: directory
+        recurse: yes
+        owner: hello-app
+        group: hello-app
+
+    - name: Copy hello-app from /tmp
+      sudo: yes
+      shell: "cp -R /tmp/hello-app/ /home/hello-app/go/src/github.com/lobsterdore/; chown -R hello-app:hello-app /home/hello-app/go/src/github.com/lobsterdore/"
+      args:
+        creates: /home/hello-app/go/src/github.com/lobsterdore/hello-app
+
+    - name: Build hello-app
+      sudo: yes
+      sudo_user: hello-app
+      command: "make build"
+      environment:
+        GOPATH: /home/hello-app/go
+      args:
+        chdir: /home/hello-app/go/src/github.com/lobsterdore/hello-app
+
+    - name: Create supervisor config
+      sudo: yes
+      shell: "cp /tmp/hello-app/supervisor.conf /etc/supervisor/conf.d/hello-app.conf"
+      args:
+        creates: /etc/supervisor/conf.d/hello-app.conf
+
+    - name: Reread supervisor
+      sudo: yes
+      command: supervisorctl reread
+
+    - name: Update supervisor
+      sudo: yes
+      command: supervisorctl update

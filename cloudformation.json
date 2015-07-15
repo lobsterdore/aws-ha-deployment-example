@@ -1,0 +1,238 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+
+  "Description": "HA Example",
+
+  "Parameters": {
+
+    "InstanceType": {
+      "Description": "WebServer EC2 instance type",
+      "Type": "String",
+      "Default": "t2.micro",
+      "AllowedValues": [ "t1.micro", "t2.micro", "t2.small", "t2.medium", "m1.small", "m1.medium", "m1.large", "m1.xlarge", "m2.xlarge", "m2.2xlarge", "m2.4xlarge", "m3.medium", "m3.large", "m3.xlarge", "m3.2xlarge", "c1.medium", "c1.xlarge", "c3.large", "c3.xlarge", "c3.2xlarge", "c3.4xlarge", "c3.8xlarge", "c4.large", "c4.xlarge", "c4.2xlarge", "c4.4xlarge", "c4.8xlarge", "g2.2xlarge", "r3.large", "r3.xlarge", "r3.2xlarge", "r3.4xlarge", "r3.8xlarge", "i2.xlarge", "i2.2xlarge", "i2.4xlarge", "i2.8xlarge", "d2.xlarge", "d2.2xlarge", "d2.4xlarge", "d2.8xlarge", "hi1.4xlarge", "hs1.8xlarge", "cr1.8xlarge", "cc2.8xlarge", "cg1.4xlarge"]
+,
+      "ConstraintDescription" : "must be a valid EC2 instance type."
+    },
+    "KeyName": {
+      "Description": "Name of an existing EC2 KeyPair to enable SSH access to the instance",
+      "Type": "AWS::EC2::KeyPair::KeyName",
+      "ConstraintDescription": "must be the name of an existing EC2 KeyPair."
+    },
+    "InstanceCount": {
+      "Description": "Number of EC2 instances to launch",
+      "Type": "Number",
+      "Default": "1"
+    },
+    "InstanceImageId": {
+      "Description": "Image ID for EC2 instances",
+      "Type": "String"
+    }
+  },
+  "Mappings" : {
+  },
+  "Resources" : {
+
+    "InternetGateway" : {
+      "Type" : "AWS::EC2::InternetGateway",
+      "Properties" : {
+        "Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} } ]
+      }
+    },
+
+    "VPC" : {
+      "Type" : "AWS::EC2::VPC",
+      "Properties" : {
+        "CidrBlock" : "10.0.0.0/16",
+        "Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} } ]
+      }
+    },
+
+    "AttachGateway" : {
+       "Type" : "AWS::EC2::VPCGatewayAttachment",
+       "Properties" : {
+         "VpcId" : { "Ref" : "VPC" },
+         "InternetGatewayId" : { "Ref" : "InternetGateway" }
+       }
+    },
+
+    "PublicSubnet" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "CidrBlock" : "10.0.1.0/24",
+        "Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} } ]
+      }
+    },
+
+    "RouteTable" : {
+      "Type" : "AWS::EC2::RouteTable",
+      "Properties" : {
+        "VpcId" : {"Ref" : "VPC"},
+        "Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} } ]
+      }
+    },
+
+    "Route" : {
+      "Type" : "AWS::EC2::Route",
+      "DependsOn" : "AttachGateway",
+      "Properties" : {
+        "RouteTableId" : { "Ref" : "RouteTable" },
+        "DestinationCidrBlock" : "0.0.0.0/0",
+        "GatewayId" : { "Ref" : "InternetGateway" }
+      }
+    },
+
+    "PublicSubnetRouteTableAssociation" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PublicSubnet" },
+        "RouteTableId" : { "Ref" : "RouteTable" }
+      }
+    },
+
+    "PublicSshSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Enable external SSH access",
+        "VpcId": { "Ref": "VPC" },
+        "SecurityGroupIngress": [ {
+          "IpProtocol": "tcp",
+          "FromPort": "22",
+          "ToPort": "22",
+          "CidrIp": "0.0.0.0/0"
+        } ]
+      }
+    },
+
+    "PublicWebSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Enable external web access",
+        "VpcId": { "Ref": "VPC" },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "8080",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
+      }
+    },
+
+    "WebServerGroup" : {
+      "Type" : "AWS::AutoScaling::AutoScalingGroup",
+      "Properties" : {
+        "AvailabilityZones" : [{ "Fn::GetAtt" : [ "PublicSubnet", "AvailabilityZone" ] }],
+        "VPCZoneIdentifier" : [{ "Ref" : "PublicSubnet" }],
+        "LaunchConfigurationName" : { "Ref" : "WebLaunchConfig" },
+        "MinSize" : "1",
+        "MaxSize" : "3",
+        "DesiredCapacity" : { "Ref" : "InstanceCount" },
+        "LoadBalancerNames" : [ { "Ref" : "WebElasticLoadBalancer" } ],
+        "HealthCheckGracePeriod": "300",
+        "HealthCheckType": "ELB"
+      },
+      "CreationPolicy": {
+        "ResourceSignal": {
+          "Count": "1",
+          "Timeout": "PT5M"
+        }
+      },
+      "UpdatePolicy": {
+        "AutoScalingRollingUpdate": {
+          "MinInstancesInService": "1",
+          "MaxBatchSize": "1",
+          "PauseTime": "PT5M",
+          "WaitOnResourceSignals": "true"
+        }
+      }
+    },
+
+    "WebLaunchConfig": {
+      "Type": "AWS::AutoScaling::LaunchConfiguration",
+      "Properties": {
+        "AssociatePublicIpAddress": "true",
+        "ImageId":{
+            "Ref":"InstanceImageId"
+        },
+        "InstanceType":{
+           "Ref":"InstanceType"
+        },
+        "SecurityGroups": [
+          { "Ref": "PublicSshSecurityGroup" },
+          { "Ref": "PublicWebSecurityGroup" }
+        ],
+        "KeyName": { "Ref": "KeyName" },
+        "UserData":{
+          "Fn::Base64":{
+            "Fn::Join":[
+              "",
+              [
+                "#!/bin/bash\n",
+                "/opt/aws/bin/cfn-init ",
+                "  --resource WebLaunchConfig ",
+                "  --stack ", { "Ref": "AWS::StackName" },
+                "  --region ", { "Ref" : "AWS::Region" }, "\n",
+                "sleep 1m\n",
+                "/opt/aws/bin/cfn-signal -e $? ",
+                "  --stack ", { "Ref": "AWS::StackName" },
+                "  --resource WebServerGroup ",
+                "  --region ", { "Ref" : "AWS::Region" }, "\n"
+              ]
+            ]
+          }
+        },
+        "Metadata" : {
+          "Comment" : "Startup hello-app",
+          "AWS::CloudFormation::Init" : {
+            "config" : {
+              "services" : {
+                "sysvinit" : {
+                  "supervisor": {
+                    "enabled": "true",
+                    "ensureRunning" : "true"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "WebElasticLoadBalancer": {
+      "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+      "Properties": {
+        "CrossZone": "true",
+        "Scheme": "internet-facing",
+        "SecurityGroups": [
+          { "Ref": "PublicWebSecurityGroup" }
+        ],
+        "Subnets": [
+          { "Ref": "PublicSubnet" }
+        ],
+        "Listeners": [
+          {
+            "LoadBalancerPort": "80",
+            "InstancePort": "8080",
+            "Protocol": "HTTP"
+          }
+        ],
+        "HealthCheck": {
+          "Target": "HTTP:8080/",
+          "HealthyThreshold": "2",
+          "UnhealthyThreshold": "5",
+          "Interval": "30",
+          "Timeout": "2"
+        }
+      }
+    }
+
+  },
+
+  "Outputs" : {
+
+  }
+}
+

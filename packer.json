@@ -23,15 +23,14 @@
       "type": "shell",
       "inline": [
         "sleep 30",
-        "sudo apt-get update",
-        "sudo apt-get install -y puppet",
-        "sudo mkdir -p /home/hello-app/go/src/github.com/lobsterdore",
-        "sudo mv /tmp/hello-app /home/hello-app/go/src/github.com/lobsterdore/"
+        "sudo apt-add-repository ppa:rquillo/ansible",
+        "sudo /usr/bin/apt-get update",
+        "sudo /usr/bin/apt-get -y install ansible"
       ]
     },
     {
-      "type": "puppet-masterless",
-      "manifest_file": "provision.pp"
+      "type": "ansible-local",
+      "playbook_file": "provision.yml"
     }
   ]
 }
