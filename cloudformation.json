@@ -1,10 +1,7 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-
   "Description": "Hello-app Example",
-
   "Parameters": {
-
     "InstanceType": {
       "Description": "WebServer EC2 instance type",
       "Type": "String",
@@ -31,14 +28,12 @@
   "Mappings" : {
   },
   "Resources" : {
-
     "InternetGateway" : {
       "Type" : "AWS::EC2::InternetGateway",
       "Properties" : {
         "Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} } ]
       }
     },
-
     "VPC" : {
       "Type" : "AWS::EC2::VPC",
       "Properties" : {
@@ -46,7 +41,6 @@
         "Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} } ]
       }
     },
-
     "AttachGateway" : {
        "Type" : "AWS::EC2::VPCGatewayAttachment",
        "Properties" : {
@@ -54,7 +48,6 @@
          "InternetGatewayId" : { "Ref" : "InternetGateway" }
        }
     },
-
     "PublicSubnet" : {
       "Type" : "AWS::EC2::Subnet",
       "Properties" : {
@@ -63,7 +56,6 @@
         "Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} } ]
       }
     },
-
     "RouteTable" : {
       "Type" : "AWS::EC2::RouteTable",
       "Properties" : {
@@ -71,7 +63,6 @@
         "Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} } ]
       }
     },
-
     "Route" : {
       "Type" : "AWS::EC2::Route",
       "DependsOn" : "AttachGateway",
@@ -81,7 +72,6 @@
         "GatewayId" : { "Ref" : "InternetGateway" }
       }
     },
-
     "PublicSubnetRouteTableAssociation" : {
       "Type" : "AWS::EC2::SubnetRouteTableAssociation",
       "Properties" : {
@@ -89,7 +79,6 @@
         "RouteTableId" : { "Ref" : "RouteTable" }
       }
     },
-
     "PublicSshSecurityGroup": {
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
@@ -103,7 +92,6 @@
         } ]
       }
     },
-
     "PublicWebSecurityGroup": {
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
@@ -119,7 +107,6 @@
         ]
       }
     },
-
     "WebServerGroup" : {
       "Type" : "AWS::AutoScaling::AutoScalingGroup",
       "Properties" : {
@@ -130,25 +117,24 @@
         "MaxSize" : "3",
         "DesiredCapacity" : { "Ref" : "InstanceCount" },
         "LoadBalancerNames" : [ { "Ref" : "WebElasticLoadBalancer" } ],
-        "HealthCheckGracePeriod": "300",
+        "HealthCheckGracePeriod": "600",
         "HealthCheckType": "ELB"
       },
       "CreationPolicy": {
         "ResourceSignal": {
           "Count": "1",
-          "Timeout": "PT5M"
+          "Timeout": "PT10M"
         }
       },
       "UpdatePolicy": {
         "AutoScalingRollingUpdate": {
           "MinInstancesInService": "1",
           "MaxBatchSize": "1",
-          "PauseTime": "PT5M",
+          "PauseTime": "PT10M",
           "WaitOnResourceSignals": "true"
         }
       }
     },
-
     "WebLaunchConfig": {
       "Type": "AWS::AutoScaling::LaunchConfiguration",
       "Properties": {
@@ -170,29 +156,29 @@
               "",
               [
                 "#!/bin/bash\n",
-                "/opt/aws/bin/cfn-init ",
+                "cfn-init ",
                 "  --resource WebLaunchConfig ",
                 "  --stack ", { "Ref": "AWS::StackName" },
                 "  --region ", { "Ref" : "AWS::Region" }, "\n",
                 "sleep 1m\n",
-                "/opt/aws/bin/cfn-signal -e $? ",
+                "cfn-signal -e $? ",
                 "  --stack ", { "Ref": "AWS::StackName" },
                 "  --resource WebServerGroup ",
                 "  --region ", { "Ref" : "AWS::Region" }, "\n"
               ]
             ]
           }
-        },
-        "Metadata" : {
-          "Comment" : "Startup hello-app",
-          "AWS::CloudFormation::Init" : {
-            "config" : {
-              "services" : {
-                "sysvinit" : {
-                  "supervisor": {
-                    "enabled": "true",
-                    "ensureRunning": "true"
-                  }
+        }
+      },
+      "Metadata" : {
+        "Comment" : "Startup hello-app",
+        "AWS::CloudFormation::Init" : {
+          "config" : {
+            "services" : {
+              "sysvinit" : {
+                "supervisor": {
+                  "enabled": "true",
+                  "ensureRunning": "true"
                 }
               }
             }
@@ -200,7 +186,6 @@
         }
       }
     },
-
     "WebElasticLoadBalancer": {
       "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
       "Properties": {
@@ -228,11 +213,8 @@
         }
       }
     }
-
   },
-
   "Outputs" : {
-
   }
 }
 
